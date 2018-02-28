@@ -1,4 +1,4 @@
-# script-push
+# log-push
 
-`yarn`
-`dotenv yarn start` (make sure you have the mm .env file)
+* `yarn`
+* `dotenv yarn start` (make sure you have the mm .env file)
