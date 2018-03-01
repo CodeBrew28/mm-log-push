@@ -3,6 +3,7 @@ const { promisify } = require('util')
 const mongoose = require('mongoose')
 const AWS = require('aws-sdk')
 const uuid = require('node-uuid')
+const authenticate = require('mm-authenticate')(mongoose)
 const { Team, Script, Log } = require('mm-schemas')(mongoose)
 const { send, buffer } = require('micro')
 
@@ -15,11 +16,10 @@ const s3 = new AWS.S3({
 
 const upload = promisify(s3.upload.bind(s3))
 
-module.exports = async (req, res) => {
+module.exports = authenticate(async (req, res) => {
   const urlParams = req.url.split('/')
   if(urlParams.length !== 3) {
-    send(res, 400, 'Malformed URL')
-    return
+    return send(res, 400, 'Malformed URL')
   }
   const [_, ...teamNames] = urlParams
 
@@ -27,12 +27,13 @@ module.exports = async (req, res) => {
   const [team1, team2] = await Promise.all(teamNames.map(name => Team.findOne({name}).exec()))
 
   if(!team1) {
-    send(res, 404, `Team ${team1} not found`)
-    return;
+    return send(res, 404, `Team ${team1} not found`)
   }
   if(!team2) {
-    send(res, 404, `Team ${team2} not found`)
-    return;
+    return send(res, 404, `Team ${team2} not found`)
+  }
+  if(!(team1.canBeAccessedBy(req.user) || team2.canBeAccessedBy(req.user))) {
+    return send(res, 401, 'Unauthorized')
   }
 
   // Pipe file to s3
@@ -55,4 +56,4 @@ module.exports = async (req, res) => {
   await logFile.save()
   
   send(res, 200, data)
-}
+})
